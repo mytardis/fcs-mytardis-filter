@@ -1,0 +1,35 @@
+#!/usr/bin/python
+"""
+Usage: fcsplot in_file.fcs out_file.png
+Author: James Wettenhall <james.wettenhall@monash.edu>
+"""
+import sys
+import os
+import array
+from rpy2.robjects.packages import importr
+from rpy2.robjects import StrVector
+
+if len(sys.argv) < 3:
+    print "Usage: fcsplot in_file.fcs out_file.png"
+    sys.exit(1)
+
+graphics = importr('graphics')
+grdevices = importr('grDevices')
+base = importr('base')
+flowCore = importr('flowCore')
+
+flowSet = flowCore.read_flowSet(files=sys.argv[1])
+frameName = base.ls(envir=flowSet.do_slot("frames"))
+flowFrame = base.get(frameName, envir=flowSet.do_slot("frames"))
+
+flowViz = importr('flowViz')
+
+grdevices.png(file=sys.argv[2])
+
+try:
+    flowViz.flowPlot(flowFrame, plotParameters=StrVector(['FSC', 'SCC']),
+                     main=os.path.basename(sys.argv[1]))
+except:
+    flowViz.flowPlot(flowFrame, plotParameters=StrVector(['FSC-A', 'SSC-A']),
+                     main=os.path.basename(sys.argv[1]))
+grdevices.dev_off()
