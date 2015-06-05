@@ -40,7 +40,8 @@ Then add the definition for this filter.
 POST_SAVE_FILTERS = [
    ("tardis.tardis_portal.filters.fcs.fcs.make_filter",
    ["FCS", "http://tardis.edu.au/schemas/fcs/1",
-    "/path/to/mytardis/tardis/tardis_portal/filters/fcs/bin/fcsplot"])
+    "/path/to/mytardis/tardis/tardis_portal/filters/fcs/bin/fcsplot",
+    "/path/to/mytardis/tardis/tardis_portal/filters/fcs/bin/showinf"])
    ]
 ```
 `cd /path/to/mytardis` and load the parameter schema into the MyTardis database:
