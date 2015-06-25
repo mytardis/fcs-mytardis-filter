@@ -5,11 +5,11 @@ Author: James Wettenhall <james.wettenhall@monash.edu>
 """
 import sys
 import array
+import re
+import json
 from rpy2.robjects.packages import importr
 from rpy2.robjects import StrVector
-# from rpy2.robjects.methods import RS4, RS4Auto_Type
 import rpy2.robjects as robjects
-import re
 
 if len(sys.argv) < 2:
     print "Usage: showinf in_file.fcs"
@@ -36,18 +36,23 @@ flowFrame = base.get(frameName, envir=flowSet.do_slot("frames"))
 
 print ""
 
-parametersAndStains = \
-    [{"$P0N": "Parameter\\n($PnN)", "$P0S": "Stain\\n($PnS)",
-      "$P0R": "Range\\n($PnR)", "$P0B": "Bits\\n($PnB)",
-      "$P0E": "Decades\\n($PnE)", "$P0G": "Gain\\n($PnG)",
-      "$P0V": "Voltage\\n($PnV)", "P0CHANNELTYPE": "Channel\\n($Type"}]
+thead = [
+    {"$PnN": "Parameter\n($PnN)"},
+    {"$PnS": "Stain\n($PnS)"},
+    {"$PnR": "Range\n($PnR)"},
+    {"$PnB": "Bits\n($PnB)"},
+    {"$PnE": "Decades\n($PnE)"},
+    {"$PnG": "Gain\n($PnG)"},
+    {"$PnV": "Voltage\n($PnV)"},
+    {"PnCHANNELTYPE": "Channel\n($Type"}]
 
 # description = descriptionMethod(flowFrame, hideInternal=True)
 description = descriptionMethod(flowFrame)
 
+tbody = []
 channels = base.colnames(exprsMethod(flowFrame))
 for channel in channels:
-    parametersAndStains.append({})
+    tbody.append({})
 
 filename = None
 date = None
@@ -74,7 +79,8 @@ for i in range(0, len(description)):
     for j in range(1, len(channels) + 1):
         if re.match("\\$P%d[NSRBEGV]" % j, description.names[i]) or \
                 re.match("P%dCHANNELTYPE" % j, description.names[i]):
-            parametersAndStains[j][description.names[i]] = description[i][0]
+            tbody[j-1]["Pn" + description.names[i].lstrip("$P%d" % j)] = \
+                description[i][0]
 
 if filename is not None:
     print "File: %s" % filename
@@ -92,42 +98,5 @@ if total is not None:
     print "# Cells: %s" % total
 
 print ""
-
-# print str(parametersAndStains)
-# print ""
-
-parametersAndStainsKeys = ['$P0N', '$P0S', '$P0R', '$P0B', '$P0E', '$P0G',
-                           '$P0V', 'P0CHANNELTYPE']
-parametersAndStainsTableJson = '{\n'
-parametersAndStainsTableJson += '  "thead": ['
-for key in parametersAndStainsKeys:
-    if parametersAndStainsTableJson.endswith("}"):
-        parametersAndStainsTableJson += ", "
-    parametersAndStainsTableJson += '{"%s": "%s"}' \
-        % (key.replace('"', '\\"'),
-           parametersAndStains[0][key].replace('"', '\\"'))
-parametersAndStainsTableJson += '  ],\n'
-parametersAndStainsTableJson += '  "tbody": ['
-for i in range(1, len(channels) + 1):
-    if not parametersAndStainsTableJson.endswith('['):
-        parametersAndStainsTableJson += ', '
-    parametersAndStainsTableJson += '{'
-    for key in parametersAndStainsKeys:
-        if not parametersAndStainsTableJson.endswith('{'):
-            parametersAndStainsTableJson += ', '
-        keyn = key.replace('0', str(i))
-        if keyn not in parametersAndStains[i]:
-            parametersAndStainsTableJson += '"%s": ""' \
-                % key.replace('"', '\\"')
-        elif parametersAndStains[i][keyn].strip() == '':
-            parametersAndStainsTableJson += '"%s": ""' \
-                % key.replace('"', '\\"')
-        else:
-            parametersAndStainsTableJson += '"%s": "%s"' \
-                % (key.replace('"', '\\"'),
-                   parametersAndStains[i][keyn].replace('"', '\\"'))
-    parametersAndStainsTableJson += '}\n'
-parametersAndStainsTableJson += '  ]\n'
-parametersAndStainsTableJson += '}\n'
-
-print parametersAndStainsTableJson
+print json.dumps({'thead': thead, 'tbody': tbody})
+print ""
