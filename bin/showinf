@@ -43,12 +43,10 @@ thead = [
     {"$PnB": "Bits\n($PnB)"},
     {"$PnE": "Decades\n($PnE)"},
     {"$PnG": "Gain\n($PnG)"},
-    {"$PnV": "Voltage\n($PnV)"},
-    {"PnCHANNELTYPE": "Channel\n($Type"}]
+    {"$PnV": "Voltage\n($PnV)"}]
 
 # description = descriptionMethod(flowFrame, hideInternal=True)
 description = descriptionMethod(flowFrame)
-
 tbody = []
 channels = base.colnames(exprsMethod(flowFrame))
 for channel in channels:
@@ -77,8 +75,7 @@ for i in range(0, len(description)):
     elif description.names[i] == "$TOT":
         total = description[i][0]
     for j in range(1, len(channels) + 1):
-        if re.match("\\$P%d[NSRBEGV]" % j, description.names[i]) or \
-                re.match("P%dCHANNELTYPE" % j, description.names[i]):
+        if re.match("\\$P%d[NSRBEGV]" % j, description.names[i]):
             tbody[j-1]["$Pn" + description.names[i].lstrip("$P%d" % j)] = \
                 description[i][0]
 
