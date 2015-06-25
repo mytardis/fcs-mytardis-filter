@@ -171,12 +171,10 @@ class FcsImageFilter(object):
                     m = re.match("# Cells: (.*)", line)
                     if m:
                         numberOfCells = m.group(1)
-                    if line.strip() == "<table>":
+                    if line.strip() == "<ParametersAndStains>":
                         readingParametersAndStainsTable = True
-                        parametersAndStainsTable += line
-                    elif line.strip() == "</table>":
+                    elif line.strip() == "</ParametersAndStains>":
                         readingParametersAndStainsTable = False
-                        parametersAndStainsTable += line
                     elif readingParametersAndStainsTable:
                         parametersAndStainsTable += line
 

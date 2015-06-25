@@ -95,5 +95,7 @@ if total is not None:
     print "# Cells: %s" % total
 
 print ""
+print "<ParametersAndStains>"
 print json.dumps({'thead': thead, 'tbody': tbody})
+print "</ParametersAndStains>"
 print ""
