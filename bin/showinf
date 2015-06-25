@@ -37,8 +37,9 @@ flowFrame = base.get(frameName, envir=flowSet.do_slot("frames"))
 print ""
 
 parametersAndStains = \
-    [{"$P0N": "Parameter<br>($PnN)", "$P0S": "Stain<br>($PnS)", "$P0R": "Range<br>($PnR)",
-      "$P0B": "Bits<br>($PnB)", "$P0E": "Decades<br>($PnE)", "$P0G": "Gain<br>($PnG)",
+    [{"$P0N": "Parameter<br>($PnN)", "$P0S": "Stain<br>($PnS)",
+      "$P0R": "Range<br>($PnR)", "$P0B": "Bits<br>($PnB)",
+      "$P0E": "Decades<br>($PnE)", "$P0G": "Gain<br>($PnG)",
       "$P0V": "Voltage<br>($PnV)", "P0CHANNELTYPE": "Channel<br>Type"}]
 
 # description = descriptionMethod(flowFrame, hideInternal=True)
@@ -46,7 +47,7 @@ description = descriptionMethod(flowFrame)
 
 channels = base.colnames(exprsMethod(flowFrame))
 for channel in channels:
-	parametersAndStains.append({})
+    parametersAndStains.append({})
 
 filename = None
 date = None
@@ -58,9 +59,9 @@ total = None
 for i in range(0, len(description)):
     if description.names[i] == "$FIL":
         filename = description[i][0]
-    elif description.names[i]=="$DATE":
+    elif description.names[i] == "$DATE":
         date = description[i][0]
-    elif description.names[i]=="$BTIM":
+    elif description.names[i] == "$BTIM":
         beginTime = description[i][0]
     elif description.names[i] == "$SYS":
         system = description[i][0]
@@ -95,23 +96,36 @@ print ""
 # print str(parametersAndStains)
 # print ""
 
-parametersAndStainsKeys = ['$P0N', '$P0S', '$P0R', '$P0B', '$P0E', '$P0G', '$P0V', 'P0CHANNELTYPE']
-parametersAndStainsTable = "<table>\n"
-parametersAndStainsTable += "<tr>"
+parametersAndStainsKeys = ['$P0N', '$P0S', '$P0R', '$P0B', '$P0E', '$P0G',
+                           '$P0V', 'P0CHANNELTYPE']
+parametersAndStainsTableJson = "{\n"
+parametersAndStainsTableJson += "  'thead': ["
 for key in parametersAndStainsKeys:
-    parametersAndStainsTable += "<th>" + parametersAndStains[0][key] + "</th>"
-parametersAndStainsTable += "</tr>\n"
+    if parametersAndStainsTableJson.endswith(")"):
+        parametersAndStainsTableJson += ", "
+    parametersAndStainsTableJson += "('%s', '%s')" \
+        % (key.replace("'", "\\'"),
+           parametersAndStains[0][key].replace("'", "\\'"))
+parametersAndStainsTableJson += "  ],\n"
+parametersAndStainsTableJson += "  'tbody': ["
 for i in range(1, len(channels) + 1):
-    parametersAndStainsTable += "<tr>"
+    if not parametersAndStainsTableJson.endswith("["):
+        parametersAndStainsTableJson += ", "
+    parametersAndStainsTableJson += "{"
     for key in parametersAndStainsKeys:
         key = key.replace('0', str(i))
         if key not in parametersAndStains[i]:
-            parametersAndStainsTable += "<td>&nbsp;</td>"
+            parametersAndStainsTableJson += "'%s': ''" \
+                % key.replace("'", "\\'")
         elif parametersAndStains[i][key].strip() == "":
-            parametersAndStainsTable += "<td>&nbsp;</td>"
-	else:
-            parametersAndStainsTable += "<td>" + parametersAndStains[i][key] + "</td>"
-    parametersAndStainsTable += "</tr>\n"
-parametersAndStainsTable += "</table>\n"
+            parametersAndStainsTableJson += "'%s': ''" \
+                % key.replace("'", "\\'")
+        else:
+            parametersAndStainsTableJson += "'%s': '%s'" \
+                % (key.replace("'", "\\'"),
+                   parametersAndStains[i][key].replace("'", "\\'"))
+    parametersAndStainsTableJson += "}\n"
+parametersAndStainsTableJson += "  ]\n"
+parametersAndStainsTableJson += "}\n"
 
-print parametersAndStainsTable
+print parametersAndStainsTableJson
