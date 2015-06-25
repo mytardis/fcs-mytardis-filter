@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 Usage: fcsplot in_file.fcs out_file.png
 Author: James Wettenhall <james.wettenhall@monash.edu>
