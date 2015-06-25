@@ -13,17 +13,17 @@
     }, 
     {
         "pk": null, 
-        "model": "tardis_portal.parametername", 
+        "model": "tardis_portal.parametername",
         "fields": {
-            "name": "previewImage", 
-            "data_type": 5, 
-            "is_searchable": false, 
-            "choices": "", 
-            "comparison_type": 1, 
-            "full_name": "Preview Image", 
-            "units": "image", 
-            "order": 1, 
-            "immutable": true, 
+            "name": "previewImage",
+            "data_type": 5,
+            "is_searchable": false,
+            "choices": "",
+            "comparison_type": 1,
+            "full_name": "Preview Image",
+            "units": "image",
+            "order": 1,
+            "immutable": true,
             "schema": [
                 "http://tardis.edu.au/schemas/fcs/1"
             ]
@@ -31,20 +31,128 @@
     },
     {
         "pk": null, 
-        "model": "tardis_portal.parametername", 
+        "model": "tardis_portal.parametername",
         "fields": {
-            "name": "image_information", 
-            "data_type": 2, 
-            "is_searchable": true, 
-            "choices": "", 
-            "comparison_type": 8, 
-            "full_name": "Image Attribute", 
-            "units": "", 
-            "order": 9999, 
-            "immutable": true, 
+            "name": "file",
+            "data_type": 2,
+            "is_searchable": true,
+            "choices": "",
+            "comparison_type": 8,
+            "full_name": "File",
+            "units": "",
+            "order": 2,
+            "immutable": true,
             "schema": [
                 "http://tardis.edu.au/schemas/fcs/1"
             ]
         }
-   }
+    },
+    {
+        "pk": null, 
+        "model": "tardis_portal.parametername",
+        "fields": {
+            "name": "date",
+            "data_type": 2,
+            "is_searchable": false,
+            "choices": "",
+            "comparison_type": 1,
+            "full_name": "Date",
+            "units": "",
+            "order": 3,
+            "immutable": true,
+            "schema": [
+                "http://tardis.edu.au/schemas/fcs/1"
+            ]
+        }
+    },
+    {
+        "pk": null, 
+        "model": "tardis_portal.parametername",
+        "fields": {
+            "name": "time",
+            "data_type": 2,
+            "is_searchable": false,
+            "choices": "",
+            "comparison_type": 1,
+            "full_name": "Time",
+            "units": "",
+            "order": 4,
+            "immutable": true,
+            "schema": [
+                "http://tardis.edu.au/schemas/fcs/1"
+            ]
+        }
+    },
+    {
+        "pk": null, 
+        "model": "tardis_portal.parametername",
+        "fields": {
+            "name": "cytometer",
+            "data_type": 2,
+            "is_searchable": true,
+            "choices": "",
+            "comparison_type": 8,
+            "full_name": "Cytometer",
+            "units": "",
+            "order": 5,
+            "immutable": true,
+            "schema": [
+                "http://tardis.edu.au/schemas/fcs/1"
+            ]
+        }
+    },
+    {
+        "pk": null, 
+        "model": "tardis_portal.parametername",
+        "fields": {
+            "name": "application",
+            "data_type": 2,
+            "is_searchable": false,
+            "choices": "",
+            "comparison_type": 1,
+            "full_name": "Application",
+            "units": "",
+            "order": 6,
+            "immutable": true,
+            "schema": [
+                "http://tardis.edu.au/schemas/fcs/1"
+            ]
+        }
+    },
+    {
+        "pk": null, 
+        "model": "tardis_portal.parametername",
+        "fields": {
+            "name": "numberOfCells",
+            "data_type": 2,
+            "is_searchable": false,
+            "choices": "",
+            "comparison_type": 1,
+            "full_name": "# Cells",
+            "units": "",
+            "order": 7,
+            "immutable": true,
+            "schema": [
+                "http://tardis.edu.au/schemas/fcs/1"
+            ]
+        }
+    },
+    {
+        "pk": null, 
+        "model": "tardis_portal.parametername",
+        "fields": {
+            "name": "parametersAndStainsTable",
+            "data_type": 8,
+            "is_searchable": true,
+            "choices": "",
+            "comparison_type": 8,
+            "full_name": "Parameters and Stains",
+            "units": "",
+            "order": 8,
+            "immutable": true,
+            "schema": [
+                "http://tardis.edu.au/schemas/fcs/1"
+            ]
+        }
+    },
 ]
