@@ -79,7 +79,7 @@ for i in range(0, len(description)):
     for j in range(1, len(channels) + 1):
         if re.match("\\$P%d[NSRBEGV]" % j, description.names[i]) or \
                 re.match("P%dCHANNELTYPE" % j, description.names[i]):
-            tbody[j-1]["Pn" + description.names[i].lstrip("$P%d" % j)] = \
+            tbody[j-1]["$Pn" + description.names[i].lstrip("$P%d" % j)] = \
                 description[i][0]
 
 if filename is not None:
