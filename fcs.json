@@ -147,7 +147,7 @@
             "choices": "",
             "comparison_type": 8,
             "full_name": "Parameters and Stains",
-            "units": "",
+            "units": "fcs-table",
             "order": 8,
             "immutable": true,
             "schema": [
