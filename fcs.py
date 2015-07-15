@@ -35,23 +35,176 @@ fcs.py
 .. moduleauthor:: James Wettenhall <james.wettenhall@monash.edu>
 
 """
-from fractions import Fraction
 import logging
 
 from django.conf import settings
+from django.core.cache import get_cache
 
 from tardis.tardis_portal.models import Schema, DatafileParameterSet
 from tardis.tardis_portal.models import ParameterName, DatafileParameter
-from tardis.tardis_portal.models import DataFileObject
+from tardis.tardis_portal.models import DataFile, DataFileObject
 import subprocess
 import re
-import tempfile
 import os
-import shutil
 import traceback
 import urlparse
+from celery.task import task
 
 logger = logging.getLogger(__name__)
+
+LOCK_EXPIRE = 60 * 5  # Lock expires in 5 minutes
+
+
+@task(name="tardis_portal.filters.fcs.fcsplot",
+      ignore_result=True)
+def run_fcsplot(fcsplot_path, inputfilename, df_id, schema_id):
+    """
+    Run fcsplot on a FCS file.
+    """
+    cache = get_cache('celery-locks')
+
+    # Locking functions to ensure only one instance of
+    # fcsplot operates on each datafile at a time.
+    lock_id = 'fcs-filter-fcsplot-lock-%d' % df_id
+
+    def acquire_lock(): return cache.add(lock_id, 'true', LOCK_EXPIRE)
+
+    def release_lock(): cache.delete(lock_id)
+
+    if acquire_lock():
+        try:
+            outputextension = "png"
+            dfo = DataFileObject.objects.filter(datafile__id=df_id,
+                                                verified=True).first()
+            preview_image_rel_file_path = os.path.join(
+                os.path.dirname(urlparse.urlparse(dfo.uri).path),
+                str(df_id),
+                '%s.%s' % (os.path.basename(inputfilename),
+                           outputextension))
+            preview_image_file_path = os.path.join(
+                settings.METADATA_STORE_PATH, preview_image_rel_file_path)
+
+            if not os.path.exists(os.path.dirname(preview_image_file_path)):
+                os.makedirs(os.path.dirname(preview_image_file_path))
+
+            cmdline = "'%s' '%s' '%s'" % \
+                (fcsplot_path, inputfilename, preview_image_file_path)
+            logger.info(cmdline)
+            p = subprocess.Popen(cmdline, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, shell=True)
+            stdout, _ = p.communicate()
+            if p.returncode != 0:
+                logger.error(stdout)
+                return
+            try:
+                ps = DatafileParameterSet.objects.get(schema__id=schema_id,
+                                                      datafile__id=df_id)
+            except DatafileParameterSet.DoesNotExist:
+                ps = DatafileParameterSet(schema=schema,
+                                          datafile=instance)
+                ps.save()
+            param_name = ParameterName.objects.get(schema__id=schema_id,
+                                                   name='previewImage')
+            dfp = DatafileParameter(parameterset=ps, name=param_name)
+            dfp.string_value = preview_image_rel_file_path
+            dfp.save()
+        except:
+            logger.error(traceback.format_exc())
+        finally:
+            release_lock()
+
+
+@task(name="tardis_portal.filters.fcs.showinf", ignore_result=True)
+def run_showinf(showinf_path, inputfilename, df_id, schema_id):
+    """
+    Run showinf on FCS file to extract metadata.
+    """
+    cache = get_cache('celery-locks')
+
+    # Locking functions to ensure only one instance of
+    # showinf operates on each datafile at a time.
+    lock_id = 'fcs-filter-showinf-lock-%d' % df_id
+
+    def acquire_lock(): return cache.add(lock_id, 'true', LOCK_EXPIRE)
+
+    def release_lock(): cache.delete(lock_id)
+
+    if acquire_lock():
+        try:
+            cmdline = "'%s' '%s'" % (showinf_path, inputfilename)
+            logger.info(cmdline)
+            p = subprocess.Popen(cmdline, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, shell=True)
+            stdout, _ = p.communicate()
+            if p.returncode != 0:
+                logger.error(stdout)
+                return
+            image_info_list = stdout.split('\n')
+
+            metadata = {
+                'file': "",
+                'date': "",
+                'time': "",
+                'cytometer': "",
+                'application': "",
+                'numberOfCells': "",
+                'parametersAndStainsTable': ""}
+
+            readingParametersAndStainsTable = False
+
+            for line in image_info_list:
+                m = re.match("File: (.*)", line)
+                if m:
+                    metadata['file'] = m.group(1)
+                m = re.match("Date: (.*)", line)
+                if m:
+                    metadata['date'] = m.group(1)
+                m = re.match("Time: (.*)", line)
+                if m:
+                    metadata['time'] = m.group(1)
+                m = re.match("Cytometer: (.*)", line)
+                if m:
+                    metadata['cytometer'] = m.group(1)
+                m = re.match("Application: (.*)", line)
+                if m:
+                    metadata['application'] = m.group(1)
+                m = re.match("# Cells: (.*)", line)
+                if m:
+                    numberOfCells = m.group(1)
+                    try:
+                        metadata['numberOfCells'] = \
+                            "{:,d}".format(int(numberOfCells))
+                    except ValueError:
+                        metadata['numberOfCells'] = ""
+                if line.strip() == "<ParametersAndStains>":
+                    readingParametersAndStainsTable = True
+                elif line.strip() == "</ParametersAndStains>":
+                    readingParametersAndStainsTable = False
+                elif readingParametersAndStainsTable:
+                    metadata['parametersAndStainsTable'] += line
+
+            try:
+                ps = DatafileParameterSet.objects.get(schema__id=schema_id,
+                                                      datafile__id=df_id)
+            except DatafileParameterSet.DoesNotExist:
+                schema = Schema.objects.get(id=schema_id)
+                datafile = DataFile.objects.get(id=df_id)
+                ps = DatafileParameterSet(schema=schema, datafile=datafile)
+                ps.save()
+
+            param_name_strings = ['file', 'date', 'time', 'cytometer',
+                                  'application', 'numberOfCells',
+                                  'parametersAndStainsTable']
+            for param_name_str in param_name_strings:
+                param_name = ParameterName.objects.get(schema__id=schema_id,
+                                                       name=param_name_str)
+                dfp = DatafileParameter(parameterset=ps, name=param_name)
+                dfp.string_value = metadata[param_name_str]
+                dfp.save()
+        except:
+            logger.error(traceback.format_exc())
+        finally:
+            release_lock()
 
 
 class FcsImageFilter(object):
@@ -63,19 +216,16 @@ class FcsImageFilter(object):
     :type name: string
     :param schema: the name of the schema
     :type schema: string
-    :param tagsToFind: a list of the tags to include.
-    :type tagsToFind: list of strings
-    :param tagsToExclude: a list of the tags to exclude.
-    :type tagsToExclude: list of strings
+    :param queue: the name of the Celery queue to run tasks in.
+    :type queue: string
     """
-    def __init__(self, name, schema, image_path, metadata_path,
-                 tagsToFind=[], tagsToExclude=[]):
+    def __init__(self, name, schema, fcsplot_path, showinf_path,
+                 queue=None):
         self.name = name
         self.schema = schema
-        self.tagsToFind = tagsToFind
-        self.tagsToExclude = tagsToExclude
-        self.image_path = image_path
-        self.metadata_path = metadata_path
+        self.fcsplot_path = fcsplot_path
+        self.showinf_path = showinf_path
+        self.queue = queue
 
     def __call__(self, sender, **kwargs):
         """post save callback entry point.
@@ -86,269 +236,62 @@ class FcsImageFilter(object):
         :type created: bool
         """
         instance = kwargs.get('instance')
+        schema = Schema.objects.get(namespace__exact=self.schema)
 
         if not instance.filename.lower().endswith('.fcs'):
             return None
 
-        print "Applying FCS filter to '%s'..." % instance.filename
+        if DatafileParameterSet.objects.filter(schema=schema,
+                                               datafile=instance).exists():
+            ps = DatafileParameterSet.objects.get(schema=schema,
+                                                  datafile=instance)
+            logger.warning("Parameter set already exists for %s, "
+                           "so we'll just return it." % instance.filename)
+            return ps
 
-        schema = self.getSchema()
+        logger.info("Applying FCS filter to '%s'..." % instance.filename)
 
-        tmpdir = tempfile.mkdtemp()
-
-        filepath = os.path.join(tmpdir, instance.filename)
+        # Instead of checking out to a tmpdir, we'll use dfo.get_full_path().
+        # This won't work for object storage, but that's OK for now...
+        dfo = DataFileObject.objects.filter(datafile=instance,
+                                            verified=True).first()
+        filepath = dfo.get_full_path()
         logger.info("filepath = '" + filepath + "'")
 
-        with instance.file_object as f:
-            with open(filepath, 'wb') as g:
-                while True:
-                    chunk = f.read(1024)
-                    if not chunk:
-                        break
-                    g.write(chunk)
-
         try:
-            outputextension = "png"
-            dfos = DataFileObject.objects.filter(datafile=instance)
-            preview_image_rel_file_path = os.path.join(
-                os.path.dirname(urlparse.urlparse(dfos[0].uri).path),
-                str(instance.id),
-                '%s.%s' % (os.path.basename(filepath),
-                           outputextension))
-            logger.info("preview_image_rel_file_path = " +
-                        preview_image_rel_file_path)
-            preview_image_file_path = os.path.join(
-                settings.METADATA_STORE_PATH, preview_image_rel_file_path)
-            logger.info("preview_image_file_path = " + preview_image_file_path)
+            kwargs = {'queue': self.queue} if self.queue else {}
+            run_fcsplot.apply_async(args=[self.fcsplot_path,
+                                          filepath,
+                                          instance.id,
+                                          schema.id],
+                                    **kwargs)
 
-            if not os.path.exists(os.path.dirname(preview_image_file_path)):
-                os.makedirs(os.path.dirname(preview_image_file_path))
-
-            bin_imagepath = os.path.basename(self.image_path)
-            logger.info("bin_imagepath = " + bin_imagepath)
-            cd_imagepath = os.path.dirname(self.image_path)
-            logger.info("cd_imagepath = " + cd_imagepath)
-
-            self.fileoutput(cd_imagepath,
-                            bin_imagepath,
-                            filepath,
-                            preview_image_file_path)
-
-            metadata_dump = dict()
-            metadata_dump['previewImage'] = preview_image_rel_file_path
-
-            if filepath.endswith('.fcs'):
-                bin_infopath = os.path.basename(self.metadata_path)
-                cd_infopath = os.path.dirname(self.metadata_path)
-                image_information = self.textoutput(
-                    cd_infopath, bin_infopath, filepath).split('\n')
-
-                filename = ""
-                date = ""
-                time = ""
-                cytometer = ""
-                application = ""
-                numberOfCells = ""
-                parametersAndStainsTable = ""
-                readingParametersAndStainsTable = False
-
-                for line in image_information:
-                    m = re.match("File: (.*)", line)
-                    if m:
-                        filename = m.group(1)
-                    m = re.match("Date: (.*)", line)
-                    if m:
-                        date = m.group(1)
-                    m = re.match("Time: (.*)", line)
-                    if m:
-                        time = m.group(1)
-                    m = re.match("Cytometer: (.*)", line)
-                    if m:
-                        cytometer = m.group(1)
-                    m = re.match("Application: (.*)", line)
-                    if m:
-                        application = m.group(1)
-                    m = re.match("# Cells: (.*)", line)
-                    if m:
-                        numberOfCells = m.group(1)
-                    if line.strip() == "<ParametersAndStains>":
-                        readingParametersAndStainsTable = True
-                    elif line.strip() == "</ParametersAndStains>":
-                        readingParametersAndStainsTable = False
-                    elif readingParametersAndStainsTable:
-                        parametersAndStainsTable += line
-
-                metadata_dump['file'] = filename
-                metadata_dump['date'] = date
-                metadata_dump['time'] = time
-                metadata_dump['cytometer'] = cytometer
-                metadata_dump['application'] = application
-                try:
-                    metadata_dump['numberOfCells'] = \
-                        "{:,d}".format(int(numberOfCells))
-                except ValueError:
-                    metadata_dump['numberOfCells'] = ""
-                metadata_dump['parametersAndStainsTable'] = \
-                    parametersAndStainsTable
-
-            shutil.rmtree(tmpdir)
-
-            self.saveMetadata(instance, schema, metadata_dump)
-
+            kwargs = {'queue': self.queue} if self.queue else {}
+            run_showinf.apply_async(args=[self.showinf_path, filepath,
+                                          instance.id, schema.id],
+                                    **kwargs)
         except Exception, e:
             logger.error(str(e))
             return None
 
-    def saveMetadata(self, instance, schema, metadata):
-        """Save all the metadata to a Dataset_Files paramamter set.
-        """
-        parameters = self.getParameters(schema, metadata)
 
-        if not parameters:
-            return None
-
-        try:
-            ps = DatafileParameterSet.objects.get(schema=schema,
-                                                  datafile=instance)
-            return ps  # if already exists then just return it
-        except DatafileParameterSet.DoesNotExist:
-            ps = DatafileParameterSet(schema=schema,
-                                      datafile=instance)
-            ps.save()
-
-        for p in parameters:
-            if p.name in metadata:
-                dfp = DatafileParameter(parameterset=ps,
-                                        name=p)
-                if p.isNumeric():
-                    if metadata[p.name] != '':
-                        dfp.numerical_value = metadata[p.name]
-                        dfp.save()
-                else:
-                    if isinstance(metadata[p.name], list):
-                        for val in reversed(metadata[p.name]):
-                            strip_val = val.strip()
-                            if strip_val:
-                                dfp = DatafileParameter(parameterset=ps,
-                                                        name=p)
-                                dfp.string_value = strip_val
-                                dfp.save()
-                    else:
-                        dfp.string_value = metadata[p.name]
-                        dfp.save()
-
-        return ps
-
-    def getParameters(self, schema, metadata):
-        """Return a list of the paramaters that will be saved.
-        """
-        param_objects = ParameterName.objects.filter(schema=schema)
-        parameters = []
-        for p in metadata:
-
-            if self.tagsToFind and p not in self.tagsToFind:
-                continue
-
-            if p in self.tagsToExclude:
-                continue
-
-            parameter = filter(lambda x: x.name == p, param_objects)
-
-            if parameter:
-                parameters.append(parameter[0])
-                continue
-
-            # detect type of parameter
-            datatype = ParameterName.STRING
-
-            # Int test
-            try:
-                int(metadata[p])
-            except ValueError:
-                pass
-            except TypeError:
-                pass
-            else:
-                datatype = ParameterName.NUMERIC
-
-            # Fraction test
-            if isinstance(metadata[p], Fraction):
-                datatype = ParameterName.NUMERIC
-
-            # Float test
-            try:
-                float(metadata[p])
-            except ValueError:
-                pass
-            except TypeError:
-                pass
-            else:
-                datatype = ParameterName.NUMERIC
-
-        return parameters
-
-    def getSchema(self):
-        """Return the schema object that the paramaterset will use.
-        """
-        try:
-            return Schema.objects.get(namespace__exact=self.schema)
-        except Schema.DoesNotExist:
-            schema = Schema(namespace=self.schema, name=self.name,
-                            type=Schema.DATAFILE)
-            schema.save()
-            return schema
-
-    def exec_command(self, cmd):
-        """execute command on shell
-        """
-        p = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            shell=True)
-
-        p.wait()
-
-        result_str = p.stdout.read()
-
-        return result_str
-
-    def fileoutput(self,
-                   cd, execfilename, inputfilename, outputfilename, args=""):
-        """execute command on shell with a file output
-        """
-        cmd = "cd '%s'; ./'%s' '%s' '%s' %s" %\
-            (cd, execfilename, inputfilename, outputfilename, args)
-        logger.info(cmd)
-
-        return self.exec_command(cmd)
-
-    def fileoutput2(self, cd, execfilename, inputfilename, args1,
-                    outputfilename, args2=""):
-        """execute command on shell with a file output
-        """
-        cmd = "cd '%s'; ./'%s' '%s' %s '%s' %s" %\
-            (cd, execfilename, inputfilename, args1, outputfilename, args2)
-        logger.info(cmd)
-
-        return self.exec_command(cmd)
-
-    def textoutput(self, cd, execfilename, inputfilename, args=""):
-        """execute command on shell with a stdout output
-        """
-        cmd = "cd '%s'; ./'%s' '%s' %s" %\
-            (cd, execfilename, inputfilename, args)
-        logger.info(cmd)
-
-        return self.exec_command(cmd)
-
-
-def make_filter(name='', schema='', tagsToFind=[], tagsToExclude=[]):
+def make_filter(name='', schema='',
+                fcsplot_path=None, showinf_path=None,
+                queue=None):
     if not name:
         raise ValueError("FcsImageFilter "
                          "requires a name to be specified")
     if not schema:
         raise ValueError("FcsImageFilter "
                          "requires a schema to be specified")
-    return FcsImageFilter(name, schema, tagsToFind, tagsToExclude)
+    if not fcsplot_path:
+        raise ValueError("FcsImageFilter "
+                         "requires an fcsplot path to be specified")
+    if not showinf_path:
+        raise ValueError("FcsImageFilter "
+                         "requires a showinf path to be specified")
+    return FcsImageFilter(name, schema,
+                          fcsplot_path, showinf_path,
+                          queue)
 
 make_filter.__doc__ = FcsImageFilter.__doc__
