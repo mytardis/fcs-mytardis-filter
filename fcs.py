@@ -75,6 +75,19 @@ def run_fcsplot(fcsplot_path, inputfilename, df_id, schema_id):
 
     if acquire_lock():
         try:
+            schema = Schema.objects.get(id=schema_id)
+            datafile = DataFile.objects.get(id=df_id)
+            ps = DatafileParameterSet.objects.filter(schema=schema,
+                                                     datafile=datafile).first()
+            if ps:
+                prev_param = ParameterName.objects.get(schema__id=schema_id,
+                                                       name='previewImage')
+                if DatafileParameter.objects.filter(parameterset=ps,
+                                                    name=prev_param).exists():
+                    logger.info("FCS preview already exists for df_id %d"
+                                % df_id)
+                    return
+
             outputextension = "png"
             dfo = DataFileObject.objects.filter(datafile__id=df_id,
                                                 verified=True).first()
@@ -135,6 +148,19 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
 
     if acquire_lock():
         try:
+            schema = Schema.objects.get(id=schema_id)
+            datafile = DataFile.objects.get(id=df_id)
+            ps = DatafileParameterSet.objects.filter(schema=schema,
+                                                     datafile=datafile).first()
+            if ps:
+                file_param = ParameterName.objects.get(schema__id=schema_id,
+                                                       name='file')
+                if DatafileParameter.objects.filter(parameterset=ps,
+                                                    name=file_param).exists():
+                    logger.info("FCS metadata already exists for df_id %d"
+                                % df_id)
+                    return
+
             cmdline = "'%s' '%s'" % (showinf_path, inputfilename)
             logger.info(cmdline)
             p = subprocess.Popen(cmdline, stdout=subprocess.PIPE,
@@ -191,8 +217,6 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
                 ps = DatafileParameterSet.objects.get(schema__id=schema_id,
                                                       datafile__id=df_id)
             except DatafileParameterSet.DoesNotExist:
-                schema = Schema.objects.get(id=schema_id)
-                datafile = DataFile.objects.get(id=df_id)
                 ps = DatafileParameterSet(schema=schema, datafile=datafile)
                 ps.save()
 
