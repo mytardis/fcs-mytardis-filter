@@ -38,7 +38,7 @@ fcs.py
 import logging
 
 from django.conf import settings
-from django.core.cache import get_cache
+from django.core.cache import caches
 
 from tardis.tardis_portal.models import Schema, DatafileParameterSet
 from tardis.tardis_portal.models import ParameterName, DatafileParameter
@@ -61,14 +61,16 @@ def run_fcsplot(fcsplot_path, inputfilename, df_id, schema_id):
     """
     Run fcsplot on a FCS file.
     """
-    cache = get_cache('celery-locks')
+    cache = caches['celery-locks']
 
     # Locking functions to ensure only one instance of
     # fcsplot operates on each datafile at a time.
     lock_id = 'fcs-filter-fcsplot-lock-%d' % df_id
 
+    # cache.add fails if if the key already exists
     def acquire_lock(): return cache.add(lock_id, 'true', LOCK_EXPIRE)
-
+    # cache.delete() can be slow, but we have to use it
+    # to take advantage of using add() for atomic locking
     def release_lock(): cache.delete(lock_id)
 
     if acquire_lock():
@@ -119,14 +121,16 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
     """
     Run showinf on FCS file to extract metadata.
     """
-    cache = get_cache('celery-locks')
+    cache = caches['celery-locks']
 
     # Locking functions to ensure only one instance of
     # showinf operates on each datafile at a time.
     lock_id = 'fcs-filter-showinf-lock-%d' % df_id
 
+    # cache.add fails if if the key already exists
     def acquire_lock(): return cache.add(lock_id, 'true', LOCK_EXPIRE)
-
+    # cache.delete() can be slow, but we have to use it
+    # to take advantage of using add() for atomic locking
     def release_lock(): cache.delete(lock_id)
 
     if acquire_lock():
