@@ -116,7 +116,7 @@ def run_fcsplot(fcsplot_path, inputfilename, df_id, schema_id):
                                                       datafile__id=df_id)
             except DatafileParameterSet.DoesNotExist:
                 ps = DatafileParameterSet(schema=schema,
-                                          datafile=instance)
+                                          datafile=datafile)
                 ps.save()
             param_name = ParameterName.objects.get(schema__id=schema_id,
                                                    name='previewImage')
