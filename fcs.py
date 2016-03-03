@@ -218,7 +218,7 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
             trs = [tr for tr in pst['tbody'] if '$PnS' in tr]
             pst['tbody'] = trs
             metadata['parametersAndStainsTable'] = \
-                json.dumps(d, ensure_ascii=False)
+                json.dumps(pst, ensure_ascii=False)
 
             try:
                 ps = DatafileParameterSet.objects.get(schema__id=schema_id,
