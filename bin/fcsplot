@@ -21,15 +21,22 @@ flowCore = importr('flowCore')
 flowSet = flowCore.read_flowSet(files=sys.argv[1])
 frameName = base.ls(envir=flowSet.do_slot("frames"))
 flowFrame = base.get(frameName, envir=flowSet.do_slot("frames"))
+colNames = tuple(flowSet.do_slot("colnames"))
 
 flowViz = importr('flowViz')
 
 grdevices.png(file=sys.argv[2])
 
-try:
-    flowViz.flowPlot(flowFrame, plotParameters=StrVector(['FSC', 'SCC']),
+if 'FSC' in colNames and 'SSC' in colNames:
+    flowViz.flowPlot(flowFrame, plotParameters=StrVector(['FSC', 'SSC']),
                      main=os.path.basename(sys.argv[1]))
-except:
+elif 'FSC-A' in colNames and 'SSC-A' in colNames:
     flowViz.flowPlot(flowFrame, plotParameters=StrVector(['FSC-A', 'SSC-A']),
                      main=os.path.basename(sys.argv[1]))
+elif 'FSC' in colNames and 'SCC' in colNames:
+    flowViz.flowPlot(flowFrame, plotParameters=StrVector(['FSC', 'SCC']),
+                     main=os.path.basename(sys.argv[1]))
+else:
+    raise Exception("Couldn't find FSC and SSC columns for plotting "
+                    "preview image.")
 grdevices.dev_off()
