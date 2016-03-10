@@ -79,6 +79,10 @@ for i in range(0, len(description)):
             tbody[j-1]["$Pn" + description.names[i].lstrip("$P%d" % j)] = \
                 description[i][0]
 
+# Remove channels which are not properly labeled:
+
+tbody = [channel for channel in tbody if '$PnS' in channel]
+
 if filename is not None:
     print "File: %s" % filename
 if date is not None:
@@ -96,6 +100,6 @@ if total is not None:
 
 print ""
 print "<ParametersAndStains>"
-print json.dumps({'thead': thead, 'tbody': tbody})
+print json.dumps({'thead': thead, 'tbody': tbody}, indent=2)
 print "</ParametersAndStains>"
 print ""
