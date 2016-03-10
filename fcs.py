@@ -48,7 +48,6 @@ import re
 import os
 import traceback
 import urlparse
-import json
 from celery.task import task
 
 logger = logging.getLogger(__name__)
@@ -213,12 +212,6 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
                     readingParametersAndStainsTable = False
                 elif readingParametersAndStainsTable:
                     metadata['parametersAndStainsTable'] += line
-
-            pst = json.loads(metadata['parametersAndStainsTable'])
-            trs = [tr for tr in pst['tbody'] if '$PnS' in tr]
-            pst['tbody'] = trs
-            metadata['parametersAndStainsTable'] = \
-                json.dumps(pst, ensure_ascii=False)
 
             try:
                 ps = DatafileParameterSet.objects.get(schema__id=schema_id,
