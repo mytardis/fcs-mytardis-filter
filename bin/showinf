@@ -38,12 +38,7 @@ print ""
 
 thead = [
     {"$PnN": "Parameter\n($PnN)"},
-    {"$PnS": "Stain\n($PnS)"},
-    {"$PnR": "Range\n($PnR)"},
-    {"$PnB": "Bits\n($PnB)"},
-    {"$PnE": "Decades\n($PnE)"},
-    {"$PnG": "Gain\n($PnG)"},
-    {"$PnV": "Voltage\n($PnV)"}]
+    {"$PnS": "Stain\n($PnS)"}]
 
 # description = descriptionMethod(flowFrame, hideInternal=True)
 description = descriptionMethod(flowFrame)
@@ -54,28 +49,19 @@ for channel in channels:
 
 filename = None
 date = None
-beginTime = None
-system = None
 cytometer = None
-application = None
 total = None
 for i in range(0, len(description)):
     if description.names[i] == "$FIL":
         filename = description[i][0]
     elif description.names[i] == "$DATE":
         date = description[i][0]
-    elif description.names[i] == "$BTIM":
-        beginTime = description[i][0]
-    elif description.names[i] == "$SYS":
-        system = description[i][0]
     elif description.names[i] == "$CYT":
         cytometer = description[i][0]
-    elif description.names[i] == "APPLICATION":
-        application = description[i][0]
     elif description.names[i] == "$TOT":
         total = description[i][0]
     for j in range(1, len(channels) + 1):
-        if re.match("\\$P%d[NSRBEGV]" % j, description.names[i]):
+        if re.match("\\$P%d[NS]" % j, description.names[i]):
             tbody[j-1]["$Pn" + description.names[i].lstrip("$P%d" % j)] = \
                 description[i][0]
 
@@ -87,14 +73,8 @@ if filename is not None:
     print "File: %s" % filename
 if date is not None:
     print "Date: %s" % date
-if beginTime is not None:
-    print "Time: %s" % beginTime
-if system is not None:
-    print "System: %s" % system
 if cytometer is not None:
     print "Cytometer: %s" % cytometer
-if application is not None:
-    print "Application: %s" % application
 if total is not None:
     print "# Cells: %s" % total
 
