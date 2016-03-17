@@ -13,9 +13,7 @@ for MyTardis using Bioconductor's flowCore and flowViz packages.
  - rpy2 (http://rpy.sourceforge.net/)
    - Future versions may use littler (http://dirk.eddelbuettel.com/code/littler.html) instead.
  - ImageMagick (http://www.imagemagick.org/script/command-line-tools.php)
- - [MyTardis 3.6](https://github.com/mytardis/mytardis/branches/3.6)
-   plus a small change to allow HTML tables in datafile metadata to be marked safe to render.
-
+ 
 ## Installation
 
  - Install ImageMagick, using ```sudo apt-get install imagemagick```
