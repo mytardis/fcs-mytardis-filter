@@ -174,10 +174,6 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
             metadata = {
                 'file': "",
                 'date': "",
-                'time': "",
-                'cytometer': "",
-                'application': "",
-                'numberOfCells': "",
                 'parametersAndStainsTable': ""}
 
             readingParametersAndStainsTable = False
@@ -189,23 +185,6 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
                 m = re.match("Date: (.*)", line)
                 if m:
                     metadata['date'] = m.group(1)
-                m = re.match("Time: (.*)", line)
-                if m:
-                    metadata['time'] = m.group(1)
-                m = re.match("Cytometer: (.*)", line)
-                if m:
-                    metadata['cytometer'] = m.group(1)
-                m = re.match("Application: (.*)", line)
-                if m:
-                    metadata['application'] = m.group(1)
-                m = re.match("# Cells: (.*)", line)
-                if m:
-                    numberOfCells = m.group(1)
-                    try:
-                        metadata['numberOfCells'] = \
-                            "{:,d}".format(int(numberOfCells))
-                    except ValueError:
-                        metadata['numberOfCells'] = ""
                 if line.strip() == "<ParametersAndStains>":
                     readingParametersAndStainsTable = True
                 elif line.strip() == "</ParametersAndStains>":
@@ -220,12 +199,15 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
                 ps = DatafileParameterSet(schema=schema, datafile=datafile)
                 ps.save()
 
-            param_name_strings = ['file', 'date', 'time', 'cytometer',
-                                  'application', 'numberOfCells',
+            param_name_strings = ['file', 'date',
                                   'parametersAndStainsTable']
             for param_name_str in param_name_strings:
-                param_name = ParameterName.objects.get(schema__id=schema_id,
-                                                       name=param_name_str)
+                try:
+                    param_name = ParameterName.objects.get(schema__id=schema_id,
+                                                           name=param_name_str)
+                except ParameterName.DoesNotExist:
+                    logger.error("Didn't find parameter %s in schema id %s"
+                                 % (param_name_str, schema_id))
                 dfp = DatafileParameter(parameterset=ps, name=param_name)
                 dfp.string_value = metadata[param_name_str]
                 dfp.save()
