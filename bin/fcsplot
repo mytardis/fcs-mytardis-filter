@@ -18,7 +18,8 @@ grdevices = importr('grDevices')
 base = importr('base')
 flowCore = importr('flowCore')
 
-flowSet = flowCore.read_flowSet(files=sys.argv[1])
+flowSet = flowCore.read_flowSet(files=sys.argv[1], emptyValue=False,
+                                ignore_text_offset=True)
 frameName = base.ls(envir=flowSet.do_slot("frames"))
 flowFrame = base.get(frameName, envir=flowSet.do_slot("frames"))
 colNames = tuple(flowSet.do_slot("colnames"))
