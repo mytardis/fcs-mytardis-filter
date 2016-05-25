@@ -35,6 +35,7 @@ fcs.py
 .. moduleauthor:: James Wettenhall <james.wettenhall@monash.edu>
 
 """
+import sys
 import logging
 
 from django.conf import settings
@@ -102,8 +103,9 @@ def run_fcsplot(fcsplot_path, inputfilename, df_id, schema_id):
             if not os.path.exists(os.path.dirname(preview_image_file_path)):
                 os.makedirs(os.path.dirname(preview_image_file_path))
 
-            cmdline = "'%s' '%s' '%s'" % \
-                (fcsplot_path, inputfilename, preview_image_file_path)
+            cmdline = "'%s' '%s' '%s' '%s'" % \
+                (sys.executable, fcsplot_path, inputfilename,
+                 preview_image_file_path)
             logger.info(cmdline)
             p = subprocess.Popen(cmdline, stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT, shell=True)
@@ -161,7 +163,8 @@ def run_showinf(showinf_path, inputfilename, df_id, schema_id):
                                 % df_id)
                     return
 
-            cmdline = "'%s' '%s'" % (showinf_path, inputfilename)
+            cmdline = "'%s' '%s' '%s'" % \
+                (sys.executable, showinf_path, inputfilename)
             logger.info(cmdline)
             p = subprocess.Popen(cmdline, stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT, shell=True)
